@@ -1,102 +1,89 @@
+---
 name: Build & Deploy to EKS (Private) via Self-hosted Runner
-
 on:
   push:
-    branches: [ "result" ]
-  workflow_dispatch:
-
+    branches:
+      - result
+  workflow_dispatch: null
 permissions:
   id-token: write
   contents: read
-
 env:
   AWS_REGION: us-east-1
   EKS_CLUSTER: training
   ECR_REPO: result
   RELEASE_NAME: result-helm
   CHART_PATH: deploy/chart
-
 jobs:
   deploy:
     strategy:
       matrix:
-        runner_label: [ "eks-vpc" ]
-        namespace: [ "default" ]
-
-    # Use block-style list for runs-on to avoid flow-sequence parsing issues
+        runner_label:
+          - eks-vpc
+        namespace:
+          - default
     runs-on:
       - self-hosted
       - linux
       - ${{ matrix.runner_label }}
-
-    # Concurrency safely uses a matrix value
     concurrency:
       group: deploy-${{ matrix.namespace }}
       cancel-in-progress: false
-
     environment: prod
-
-    # Expose matrix namespace to steps via job env
     env:
       NAMESPACE: ${{ matrix.namespace }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Print role ARN for diagnostics
         run: |
           echo "Using role ARN: 'arn:aws:iam::978751494571:role/github01'"
           echo "Region: '${{ env.AWS_REGION }}'"
-
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::978751494571:role/github01
           aws-region: ${{ env.AWS_REGION }}
-
       - name: Log in to Amazon ECR
         id: ecr
         uses: aws-actions/amazon-ecr-login@v2
-
       - name: Compute image coordinates
         id: vars
+        shell: bash
         run: |
-          echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
-          echo "ECR_URI=${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPO }}" >> $GITHUB_OUTPUT
-          
-          - name: Build & push image
-            working-directory: ./result
-            run: |
-              docker build -f Dockerfile -t ${{ steps.vars.outputs.ECR_URI }}:${{ steps.vars.outputs.IMAGE_TAG }} .
-              docker push ${{ steps.vars.outputs.ECR_URI }}:${{ steps.vars.outputs.IMAGE_TAG }}
+          set -euo pipefail
+          echo "IMAGE_TAG=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+      - name: Build & push image
+        working-directory: ./result
+        shell: bash
+        run: >
+          set -euo pipefail
 
+          docker build -f Dockerfile -t "${{ steps.vars.outputs.ECR_URI }}:${{ steps.vars.outputs.IMAGE_TAG }}" .
 
+          docker push "${{ steps.vars.outputs.ECR_URI }}:${{ steps.vars.outputs.IMAGE_TAG }}"
       - name: Install kubectl
         uses: azure/setup-kubectl@v4
         with:
-          version: '1.30.0'
-
+          version: 1.30.0
       - name: Install Helm
         uses: azure/setup-helm@v4
         with:
-          version: '3.14.4'
-
+          version: 3.14.4
       - name: Update kubeconfig
-        run: |
-          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER }}
-
+        run: >
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{
+          env.EKS_CLUSTER }}
       - name: Helm upgrade
         run: |
           helm upgrade --install ${{ env.RELEASE_NAME }} ${{ env.CHART_PATH }} \
             --namespace ${{ env.NAMESPACE }} --create-namespace \
             --set image.repository=${{ steps.vars.outputs.ECR_URI }} \
             --set image.tag=${{ steps.vars.outputs.IMAGE_TAG }}
-
       - name: Verify rollout
-        run: |
-          kubectl -n ${{ env.NAMESPACE }} rollout status deploy/${{ env.RELEASE_NAME }} --timeout=180s
-
+        run: >
+          kubectl -n ${{ env.NAMESPACE }} rollout status deploy/${{ env.RELEASE_NAME
+          }} --timeout=180s
       - name: Print diagnostics (optional)
         run: |
           kubectl -n ${{ env.NAMESPACE }} get pods -o wide
