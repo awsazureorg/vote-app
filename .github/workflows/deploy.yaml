@@ -1,4 +1,3 @@
-
 name: Build & Deploy to EKS (Private) via Self-hosted Runner
 
 on:
@@ -24,8 +23,11 @@ jobs:
         runner_label: [ "eks-vpc" ]
         namespace: [ "default" ]
 
-    # Matrix expressions are supported here
-    runs-on: [ self-hosted, linux, ${{ matrix.runner_label }} ]
+    # ✅ Use block-style list for runs-on to avoid flow-sequence parsing issues
+    runs-on:
+      - self-hosted
+      - linux
+      - ${{ matrix.runner_label }}
 
     # Concurrency safely uses a matrix value
     concurrency:
@@ -91,3 +93,4 @@ jobs:
       - name: Print diagnostics (optional)
         run: |
           kubectl -n ${{ env.NAMESPACE }} get pods -o wide
+          kubectl get nodes -o wide
