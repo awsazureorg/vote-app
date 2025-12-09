@@ -3,7 +3,7 @@ name: Build & Deploy to EKS (Private) via Self-hosted Runner
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "result" ]
   workflow_dispatch:
 
 # Required for OIDC
@@ -13,11 +13,11 @@ permissions:
 
 # 🔧 Set your values here (or use repository/environment secrets)
 env:
-  AWS_REGION: ap-south-1               # change if needed
-  EKS_CLUSTER: your-eks-cluster
-  ECR_REPO: your-app
-  RELEASE_NAME: your-app
-  NAMESPACE: your-namespace
+  AWS_REGION: us-east-1
+  EKS_CLUSTER: training
+  ECR_REPO: result
+  RELEASE_NAME: result-helm
+  NAMESPACE: default
   CHART_PATH: deploy/chart
 
 jobs:
