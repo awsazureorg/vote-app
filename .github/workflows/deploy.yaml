@@ -84,17 +84,11 @@ jobs:
           docker image prune -af
           sudo journalctl --vacuum-time=3d || true
           df -h || true
-
-      
-      - name: Install kubectl
-        uses: azure/setup-kubectl@v4
-        with:
-          version: '1.30.0' # match your cluster minor version
-
-      - name: Install Helm
-        uses: azure/setup-helm@v4
-        with:
-          version: '3.14.4'
+      - name: Tool versions
+        run: |
+          kubectl version --client
+          helm version
+          aws eks update-kubeconfig --region $AWS_REGION --name $EKS_CLUSTER
 
       - name: Update kubeconfig (private endpoint reachable from runner)
         run: |
