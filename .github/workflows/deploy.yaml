@@ -84,6 +84,12 @@ jobs:
           docker image prune -af
           sudo journalctl --vacuum-time=3d || true
           df -h || true
+      
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+           version: '1.32.0'
+
       - name: Tool versions
         run: |
           kubectl version --client
