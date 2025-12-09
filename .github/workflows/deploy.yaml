@@ -74,3 +74,46 @@ jobs:
           set -euo pipefail
           docker build -f Dockerfile -t "${{ steps.vars.outputs.ECR_URI }}:${{ steps.vars.outputs.IMAGE_TAG }}" .
           docker push "${{ steps.vars.outputs.ECR_URI }}:${{ steps.vars.outputs.IMAGE_TAG }}"
+
+      
+      - name: Post-build cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker system prune -af
+          docker image prune -af
+          sudo journalctl --vacuum-time=3d || true
+          df -h || true
+
+      
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: '1.30.0' # match your cluster minor version
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: '3.14.4'
+
+      - name: Update kubeconfig (private endpoint reachable from runner)
+        run: |
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER }}
+
+      - name: Helm upgrade
+        run: |
+          helm upgrade --install ${{ env.RELEASE_NAME }} ${{ env.CHART_PATH }} \
+            --namespace ${{ env.NAMESPACE }} --create-namespace \
+            --set image.repository=${{ steps.vars.outputs.ECR_URI }} \
+            --set image.tag=${{ steps.vars.outputs.IMAGE_TAG }}
+
+      - name: Verify rollout
+        run: |
+          kubectl -n ${{ env.NAMESPACE }} rollout status deploy/${{ env.RELEASE_NAME }} --timeout=180s
+
+      - name: Print diagnostics (optional)
+        run: |
+          kubectl -n ${{ env.NAMESPACE }} get pods -o wide
+          kubectl get nodes -o wide
+
+
