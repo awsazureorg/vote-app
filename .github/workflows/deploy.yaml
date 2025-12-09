@@ -1,6 +1,4 @@
-
 name: Build & Deploy to EKS (Private) via Self-hosted Runner
-
 on:
   push:
     branches: [ "result" ]
