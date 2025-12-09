@@ -1,34 +1,34 @@
+
 name: Build & Deploy to EKS (Private) via Self-hosted Runner
+
 on:
   push:
     branches: [ "result" ]
   workflow_dispatch:
 
-# Required for OIDC
 permissions:
   id-token: write
   contents: read
 
-# 🔧 Set your values here (or use repository/environment secrets)
 env:
   AWS_REGION: us-east-1
   EKS_CLUSTER: training
   ECR_REPO: result
   RELEASE_NAME: result-helm
-  NAMESPACE: default
   CHART_PATH: deploy/chart
 
 jobs:
   deploy:
-    # Your self-hosted runner labels (example)
     runs-on: [ self-hosted, linux, eks-vpc ]
 
-    # Prevent overlapping deployments
+    # ✅ Define NAMESPACE at job-level to be safe for expressions
+    env:
+      NAMESPACE: default
+
     concurrency:
       group: deploy-${{ env.NAMESPACE }}
       cancel-in-progress: false
 
-    # (Optional) tie IAM trust to GitHub Environments for stricter control
     environment: prod
 
     steps:
@@ -59,14 +59,14 @@ jobs:
       - name: Install kubectl
         uses: azure/setup-kubectl@v4
         with:
-          version: '1.30.0' # match your cluster minor version
+          version: '1.30.0'
 
       - name: Install Helm
         uses: azure/setup-helm@v4
         with:
           version: '3.14.4'
 
-      - name: Update kubeconfig (private endpoint reachable from runner)
+      - name: Update kubeconfig
         run: |
           aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER }}
 
