@@ -85,10 +85,11 @@ jobs:
           sudo journalctl --vacuum-time=3d || true
           df -h || true
       
-      - name: Install kubectl
-        uses: azure/setup-kubectl@v4
-        with:
+      
+      -  uses: azure/setup-kubectl@v4
+         with:
            version: '1.32.10'
+         id: install
 
       - name: Tool versions
         run: |
