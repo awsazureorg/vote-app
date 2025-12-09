@@ -19,17 +19,24 @@ env:
 
 jobs:
   deploy:
-    runs-on: [ self-hosted, linux, eks-vpc ]
+    strategy:
+      matrix:
+        runner_label: [ "eks-vpc" ]
+        namespace: [ "default" ]
 
-    # ✅ Define NAMESPACE at job-level to be safe for expressions
-    env:
-      NAMESPACE: default
+    # Matrix expressions are supported here
+    runs-on: [ self-hosted, linux, ${{ matrix.runner_label }} ]
 
+    # Concurrency safely uses a matrix value
     concurrency:
-      group: deploy-${{ env.NAMESPACE }}
+      group: deploy-${{ matrix.namespace }}
       cancel-in-progress: false
 
     environment: prod
+
+    # Expose matrix namespace to steps via job env
+    env:
+      NAMESPACE: ${{ matrix.namespace }}
 
     steps:
       - name: Checkout
@@ -84,4 +91,3 @@ jobs:
       - name: Print diagnostics (optional)
         run: |
           kubectl -n ${{ env.NAMESPACE }} get pods -o wide
-          kubectl get nodes -o wide
