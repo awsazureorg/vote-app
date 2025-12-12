@@ -12,7 +12,7 @@ env:
   EKS_CLUSTER: training
   ECR_REPO: result
   RELEASE_NAME: result-helm
-  CHART_PATH: result-helm/templates
+  CHART_PATH: result-helm/
 jobs:
   deploy:
     strategy:
